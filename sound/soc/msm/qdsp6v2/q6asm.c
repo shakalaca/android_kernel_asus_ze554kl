@@ -44,7 +44,7 @@
 
 #define TRUE        0x01
 #define FALSE       0x00
-#define SESSION_MAX 8
+#define SESSION_MAX 9
 #define ASM_MAX_CHANNELS 8
 
 enum {
@@ -1359,7 +1359,7 @@ int q6asm_audio_client_buf_alloc(unsigned int dir,
 	pr_debug("%s: session[%d]bufsz[%d]bufcnt[%d]\n", __func__, ac->session,
 		bufsz, bufcnt);
 
-	if (ac->session <= 0 || ac->session > 8) {
+	if (ac->session <= 0 || ac->session > ASM_ACTIVE_STREAMS_ALLOWED) {
 		pr_err("%s: Session ID is invalid, session = %d\n", __func__,
 			ac->session);
 		goto fail;
@@ -1450,7 +1450,7 @@ int q6asm_audio_client_buf_alloc_contiguous(unsigned int dir,
 			__func__, ac->session,
 			bufsz, bufcnt);
 
-	if (ac->session <= 0 || ac->session > 8) {
+	if (ac->session <= 0 || ac->session > ASM_ACTIVE_STREAMS_ALLOWED) {
 		pr_err("%s: Session ID is invalid, session = %d\n", __func__,
 			ac->session);
 		goto fail;
@@ -1759,7 +1759,7 @@ static int32_t q6asm_callback(struct apr_client_data *data, void *priv)
 		return -EINVAL;
 	}
 
-	if (ac->session <= 0 || ac->session > 8) {
+	if (ac->session <= 0 || ac->session > ASM_ACTIVE_STREAMS_ALLOWED) {
 		pr_err("%s: Session ID is invalid, session = %d\n", __func__,
 			ac->session);
 		return -EINVAL;
@@ -7236,10 +7236,9 @@ int q6asm_send_rtic_event_ack(struct audio_client *ac,
 		goto done;
 	}
 
-	q6asm_add_hdr_async(ac, &ack.hdr,
+	 q6asm_stream_add_hdr_async(ac, &ack.hdr,
 			    sizeof(struct avs_param_rtic_event_ack) +
-			    params_length, TRUE);
-	atomic_set(&ac->cmd_state, -1);
+			    params_length, TRUE, ac->stream_id);
 	ack.hdr.opcode = ASM_STREAM_CMD_SET_ENCDEC_PARAM_V2;
 	ack.encdec.param_id = AVS_PARAM_ID_RTIC_EVENT_ACK;
 	ack.encdec.param_size = params_length;
@@ -7249,31 +7248,11 @@ int q6asm_send_rtic_event_ack(struct audio_client *ac,
 	memcpy(asm_params + sizeof(struct avs_param_rtic_event_ack),
 		param, params_length);
 	rc = apr_send_pkt(ac->apr, (uint32_t *) asm_params);
-	if (rc < 0) {
+	if (rc < 0)
 		pr_err("%s: apr pkt failed for rtic event ack\n", __func__);
-		rc = -EINVAL;
-		goto fail_send_param;
-	}
+	else
+		rc = 0;
 
-	rc = wait_event_timeout(ac->cmd_wait,
-				(atomic_read(&ac->cmd_state) >= 0), 1 * HZ);
-	if (!rc) {
-		pr_err("%s: timeout for rtic event ack cmd\n", __func__);
-		rc = -ETIMEDOUT;
-		goto fail_send_param;
-	}
-
-	if (atomic_read(&ac->cmd_state) > 0) {
-		pr_err("%s: DSP returned error[%s] for rtic event ack cmd\n",
-				__func__, adsp_err_get_err_str(
-				atomic_read(&ac->cmd_state)));
-		rc = adsp_err_get_lnx_err_code(
-				atomic_read(&ac->cmd_state));
-		goto fail_send_param;
-	}
-	rc = 0;
-
-fail_send_param:
 	kfree(asm_params);
 done:
 	return rc;

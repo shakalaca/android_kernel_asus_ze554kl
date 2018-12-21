@@ -154,6 +154,18 @@ EXPORT_SYMBOL(console_set_on_cmdline);
 /* Flag: console code may call schedule() */
 static int console_may_schedule;
 
+#ifndef ASUS_USER_BUILD
+#ifdef CONFIG_BOOTDBGUART
+#ifdef ASUS_FTM_BUILD
+bool g_bootdbguart_y = false;  //flag which indicates if uart is disabled
+#else
+bool g_bootdbguart_y = true;  //flag which indicates if uart is enabled
+#endif
+static char g_console_setting[128];      //save the console string for further initial
+static bool g_console_inited = false;
+#endif
+#endif
+
 /*
  * The printk log buffer consists of a chain of concatenated variable
  * length records. Every record starts with a record header, containing
@@ -2148,6 +2160,18 @@ static int __init console_setup(char *str)
 	char *s, *options, *brl_options = NULL;
 	int idx;
 
+#ifndef ASUS_USER_BUILD
+#ifdef CONFIG_BOOTUARTDBG
+	if (!g_bootdbguart_y) {
+		strncpy(g_console_setting, str, 128);
+		g_console_inited = false;
+		return 0;
+	} else {
+		g_console_inited = true;
+	}
+#endif
+#endif
+
 	if (_braille_console_setup(&str, &brl_options))
 		return 1;
 
@@ -2181,6 +2205,34 @@ static int __init console_setup(char *str)
 	return 1;
 }
 __setup("console=", console_setup);
+
+#ifndef ASUS_USER_BUILD
+#ifdef CONFIG_BOOTDBGUART
+/*
+ * setup uart according to flags in command line
+ */
+static int __init console_enable(char *str)
+{
+	int ret = 0;
+
+	if (!memcmp(str, "y", 1)) {
+
+		g_bootdbguart_y = true;
+		/* If console= get called after this, re-intial console */
+		if (g_console_inited == false) {
+			ret = console_setup(g_console_setting);
+		}
+
+	} else {
+		g_bootdbguart_y = false;
+	}
+
+	return ret;
+}
+__setup("bootdbguart=", console_enable);
+
+#endif
+#endif
 
 /**
  * add_preferred_console - add a device to the list of preferred consoles.
@@ -2640,6 +2692,15 @@ void register_console(struct console *newcon)
 	unsigned long flags;
 	struct console *bcon = NULL;
 	struct console_cmdline *c;
+
+#ifndef ASUS_USER_BUILD
+#ifdef CONFIG_BOOTDBGUART
+	if (!g_bootdbguart_y) {
+		return ;
+	}
+#endif
+#endif
+
 
 	if (console_drivers)
 		for_each_console(bcon)

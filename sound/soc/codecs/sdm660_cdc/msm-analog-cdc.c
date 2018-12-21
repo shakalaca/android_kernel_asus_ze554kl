@@ -39,6 +39,11 @@
 #include <linux/proc_fs.h>
 struct sdm660_cdc_priv *g_sdm660_cdc_priv;
 int g_DebugMode = 1;
+#ifndef ASUS_USER_BUILD
+#ifdef CONFIG_BOOTDBGUART
+extern bool g_bootdbguart_y;
+#endif
+#endif
 #define AUDIO_DEBUG_GPIO 25
 #include <linux/switch.h>
 struct switch_dev *g_audiowizard_force_preset_sdev = NULL;
@@ -59,10 +64,10 @@ struct switch_dev *g_audiowizard_force_preset_sdev = NULL;
 #define BUS_DOWN 1
 
 /*
- * 50 Milliseconds sufficient for DSP bring up in the lpass
+ * 200 Milliseconds sufficient for DSP bring up in the lpass
  * after Sub System Restart
  */
-#define ADSP_STATE_READY_TIMEOUT_MS 50
+#define ADSP_STATE_READY_TIMEOUT_MS 200
 
 #define EAR_PMD 0
 #define EAR_PMU 1
@@ -2622,6 +2627,17 @@ static int msm_anlg_cdc_codec_enable_micbias(struct snd_soc_dapm_widget *w,
 	return 0;
 }
 
+static void set_compander_mode(void *handle, int val)
+{
+	struct sdm660_cdc_priv *handle_cdc = handle;
+	struct snd_soc_codec *codec = handle_cdc->codec;
+
+	if (get_codec_version(handle_cdc) >= DIANGU) {
+		snd_soc_update_bits(codec,
+			MSM89XX_PMIC_ANALOG_RX_COM_BIAS_DAC,
+			0x08, val);
+	};
+}
 static void update_clkdiv(void *handle, int val)
 {
 	struct sdm660_cdc_priv *handle_cdc = handle;
@@ -4145,12 +4161,22 @@ static ssize_t audio_debug_proc_write(struct file *filp, const char __user *buff
 		}
 		printk("[Audio][Debug] Audio debug mode!!\n");
 	} else if (strncmp(messages, "0", 1) == 0) {
+#ifndef ASUS_USER_BUILD
+#ifdef CONFIG_BOOTDBGUART
+		if (g_bootdbguart_y) {
+			gpio_direction_output(AUDIO_DEBUG_GPIO, 0); /* enable uart log, disable audio */
+			wcd_mbhc_plug_detect_for_debug_mode(&g_sdm660_cdc_priv->mbhc, 1);
+			g_DebugMode = 1;
+			printk("[Audio][Debug] Audio debug mode!!\n");
+		} else
+#endif
+#endif
 		if (g_DebugMode) {
 			gpio_direction_output(AUDIO_DEBUG_GPIO, 1); /* disable uart log, enable audio */
 			g_DebugMode = 0;
 			wcd_mbhc_plug_detect_for_debug_mode(&g_sdm660_cdc_priv->mbhc, 0);
+			printk("[Audio][Debug] Audio headset normal mode!!\n");
 		}
-		printk("[Audio][Debug] Audio headset normal mode!!\n");
 	} else if (strncmp(messages, "read", strlen("read")) == 0) {
 		unsigned int reg, value;
 		sscanf(messages + 5, "%x", &reg);
@@ -4416,7 +4442,18 @@ static int msm_anlg_cdc_soc_probe(struct snd_soc_codec *codec)
 	ret = gpio_request(AUDIO_DEBUG_GPIO, "AUDIO_DEBUG");
 	if (ret)
 		printk("%s: Failed to request gpio AUDIO_DEBUG %d\n", __func__, AUDIO_DEBUG_GPIO);
+#ifndef ASUS_USER_BUILD
+#ifdef CONFIG_BOOTDBGUART
+	else if (g_bootdbguart_y) {
+		printk("%s: g_bootdbguart_y = true\n", __func__);
+		gpio_direction_output(AUDIO_DEBUG_GPIO, 0); /* enable uart log, disable audio */
+		g_DebugMode = 1;
+		wcd_mbhc_plug_detect_for_debug_mode(&g_sdm660_cdc_priv->mbhc, 1);
+	}
+#endif
+#endif
 	else {
+		printk("%s: g_bootdbguart_y = false\n", __func__);
 		gpio_direction_output(AUDIO_DEBUG_GPIO, 1); /* disable uart log, enable audio */
 		g_DebugMode = 0;
 		wcd_mbhc_plug_detect_for_debug_mode(&g_sdm660_cdc_priv->mbhc, 0);
@@ -4885,6 +4922,7 @@ static int msm_anlg_cdc_probe(struct platform_device *pdev)
 	BLOCKING_INIT_NOTIFIER_HEAD(&sdm660_cdc->notifier_mbhc);
 
 	sdm660_cdc->dig_plat_data.handle = (void *) sdm660_cdc;
+	sdm660_cdc->dig_plat_data.set_compander_mode = set_compander_mode;
 	sdm660_cdc->dig_plat_data.update_clkdiv = update_clkdiv;
 	sdm660_cdc->dig_plat_data.get_cdc_version = get_cdc_version;
 	sdm660_cdc->dig_plat_data.register_notifier =

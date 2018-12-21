@@ -1307,7 +1307,7 @@ static void polling_Rear_RGBvalue(void)
  		    cm_lp_info->dataW = dataI[3];
  		}            
  	}
- 	RGB_DBG("%s: cmd = DATA_READ_RGBW, dataR = %d, dataG = %d, dataB = %d, dataW = %d\n"
+ 	RGB_DBG_API("%s: cmd = DATA_READ_RGBW, dataR = %d, dataG = %d, dataB = %d, dataW = %d\n"
 					, __func__, cm_lp_info->dataR, cm_lp_info->dataG, cm_lp_info->dataB, cm_lp_info->dataW);    
 }
 

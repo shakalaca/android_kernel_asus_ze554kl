@@ -666,6 +666,15 @@ static void sde_hdmi_tx_hdcp_cb_work(struct work_struct *work)
 		}
 
 		break;
+		case HDCP_STATE_AUTH_FAIL_NOREAUTH:
+		if (hdmi_ctrl->hdcp1_use_sw_keys && hdmi_ctrl->hdcp14_present) {
+			if (hdmi_ctrl->auth_state && !hdmi_ctrl->hdcp22_present)
+				hdcp1_set_enc(false);
+		}
+
+		hdmi_ctrl->auth_state = false;
+
+		break;
 	case HDCP_STATE_AUTH_ENC_NONE:
 		hdmi_ctrl->enc_lvl = HDCP_STATE_AUTH_ENC_NONE;
 		if (sde_hdmi_tx_is_panel_on(hdmi_ctrl))
@@ -2153,6 +2162,8 @@ int sde_hdmi_get_property(struct drm_connector *connector,
 	mutex_lock(&hdmi_display->display_lock);
 	if (property_index == CONNECTOR_PROP_PLL_ENABLE)
 		*value = hdmi_display->pll_update_enable ? 1 : 0;
+	if (property_index == CONNECTOR_PROP_HDCP_VERSION)
+		*value = hdmi_display->sink_hdcp_ver;
 	mutex_unlock(&hdmi_display->display_lock);
 
 	return rc;

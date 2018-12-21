@@ -805,7 +805,7 @@ include scripts/Makefile.ubsan
 ifneq ($(BUILD_NUMBER),)
 	KBUILD_CPPFLAGS += -DASUS_SW_VER=\"$(BUILD_NUMBER)\"
 else
-	KBUILD_CPPFLAGS += -DASUS_SW_VER=\"$(ASUS_BUILD_PROJECT)_ENG\"
+	KBUILD_CPPFLAGS += -DASUS_SW_VER=\"ZE554KL_ENG\"
 endif
 # Add any arch overrides and user supplied CPPFLAGS, AFLAGS and CFLAGS as the
 # last assignments
