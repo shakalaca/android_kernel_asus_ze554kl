@@ -759,8 +759,8 @@ void save_last_shutdown_log(char *filename)
 {
 	char *last_shutdown_log;
 	int file_handle;
-	unsigned long long t;
-	unsigned long nanosec_rem;
+	struct rtc_time tm;
+
     // ASUS_BSP +++
     char buffer[] = {"Kernel panic"};
     int i;
@@ -772,16 +772,14 @@ void save_last_shutdown_log(char *filename)
 	ulong printk_buffer_index;
 	/* ASUS_BSP --- */
 
-	t = cpu_clock(0);
-	nanosec_rem = do_div(t, 1000000000);
+	asus_rtc_read_time(&tm);
 	last_shutdown_log = (char *)PRINTK_BUFFER_VA;
 	/* ASUS_BSP For upload crash log to DroBox issue */
 	last_logcat_buffer = (char *)LOGCAT_BUFFER;
 	printk_buffer_slot2_addr = (ulong *)PRINTK_BUFFER_SLOT2;
 	/* ASUS_BSP --- */
-	sprintf(messages, ASUS_ASDF_BASE_DIR "LastShutdown_%lu.%06lu.txt",
-		(unsigned long)t,
-		nanosec_rem / 1000);
+	sprintf(messages, ASUS_ASDF_BASE_DIR "LastShutdown_%04d%02d%02d-%02d%02d%02d.txt",
+		tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec);
 
 	initKernelEnv();
 	file_handle = sys_open(messages, O_CREAT | O_RDWR | O_SYNC, 0);

@@ -54,6 +54,9 @@
 
 #define SMB2_DEFAULT_WPWR_UW	8000000
 
+#define INOV_TRIGGER		45
+#define INOV_RELEASE		43
+
 static struct smb_params v1_params = {
 	.fcc			= {
 		.name	= "fast charge current",
@@ -3222,6 +3225,12 @@ void asus_probe_pmic_settings(struct smb_charger *chg)
 		dev_err(chg->dev, "Couldn't set default THERMREG_SRC_CFG_REG rc=%d\n", rc);
 	}
 */
+
+//WeiYu: setting inov ++
+	smblib_write(chg, SKIN_HOT_REG, (INOV_RELEASE+30)*2);
+	smblib_write(chg, SKIN_TOO_HOT_REG, (INOV_TRIGGER+30)*2);
+//WeiYu: setting inov --
+
 }
 
 static int smb2_probe(struct platform_device *pdev)

@@ -630,6 +630,7 @@
 			qcom,fg-chg-term-current = <100>;
 			qcom,fg-sys-term-current = <(-150)>;
 			qcom,hold-soc-while-full;
+			qcom,linearize-soc; //ASUS_BSP
 			qcom,fg-force-load-profile;
 
 			qcom,fg-jeita-thresholds = <0 10 50 60>;

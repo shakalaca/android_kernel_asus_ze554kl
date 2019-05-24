@@ -96,6 +96,8 @@ extern void focal_usb_detection(bool plugin);		//ASUS BSP Nancy : notify touch c
 extern struct fg_chip * g_fgChip;	//ASUS BSP : guage +++
 extern int gauge_get_prop;
 
+
+
 int asus_get_prop_batt_temp(struct smb_charger *chg);
 int asus_get_prop_batt_volt(struct smb_charger *chg);
 int asus_get_prop_batt_capacity(struct smb_charger *chg);
@@ -4102,6 +4104,21 @@ void jeita_rule(void)
 		CHG_DBG("%s: Couldn't write jeita_status_register rc = %d\n", __func__, rc);
 }
 
+void update_inov_info(void){
+
+	u8 val=0,thd_hot=0,thd_2hot=0;
+
+	smblib_read(smbchg_dev, AUX_THERM_STATE_REG, &val);
+	smblib_read(smbchg_dev, SKIN_HOT_REG, &thd_hot);
+	smblib_read(smbchg_dev, SKIN_TOO_HOT_REG, &thd_2hot);
+
+	CHG_DBG("INOV info: raw:0x%x, thd(%d,%d), trigger(%d,%d)\n",
+		val,(int)(thd_hot>>1)-30,(int)(thd_2hot>>1)-30, 
+		val&BIT(4)?1:0, val&BIT(5)?1:0);
+
+}
+
+
 void asus_min_monitor_work(struct work_struct *work)
 {
 	
@@ -4114,6 +4131,7 @@ void asus_min_monitor_work(struct work_struct *work)
 		asus_typec_removal_function(smbchg_dev);
 		return;
 	}
+	update_inov_info();
 
 	jeita_rule();
 
@@ -4126,6 +4144,7 @@ void asus_min_monitor_work(struct work_struct *work)
 	asus_smblib_relax(smbchg_dev);
 }
 //ASUS BSP Add per min monitor jeita & thermal & typeC_DFP ---
+
 
 void asus_chg_flow_work(struct work_struct *work)
 {

@@ -943,7 +943,11 @@ static int loop_set_fd(struct loop_device *lo, fmode_t mode,
 	mapping_set_gfp_mask(mapping, lo->old_gfp_mask & ~(__GFP_IO|__GFP_FS));
 
 	if (!(lo_flags & LO_FLAGS_READ_ONLY) && file->f_op->fsync)
+	#ifdef BLOCK_WRITE_CACHE
+		blk_queue_write_cache(lo->lo_queue, true, false);
+	#else
 		blk_queue_flush(lo->lo_queue, REQ_FLUSH);
+	#endif
 
 	loop_update_dio(lo);
 	set_capacity(lo->lo_disk, size);
