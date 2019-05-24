@@ -451,11 +451,15 @@ static int smb2_usb_get_prop(struct power_supply *psy,
 
 		/* WeiYu ++
 			keep reporting online while under ac detecting
-			[concern] N/A, similar WA to N 
+			//[concern] N/A, similar WA to N 
 			[history] prop online logic are difference between N/O,
 			hence O need add this section
+			[issue] In the begining of usb(SDP) pluged-in, the usb type turns into
+			AC for a while. So we apply real_charger_type != POWER_SUPPLY_TYPE_USB
+
 		*/
-		if (val->intval == 0 && asus_adapter_detecting_flag){
+		if (val->intval == 0 && asus_adapter_detecting_flag 
+			&& chg->real_charger_type != POWER_SUPPLY_TYPE_USB){ //Jan,19 WeiYu++
 			val->intval = 1;		
 			CHG_DBG("force reporting online due to under AC detecting flow\n");
 		}

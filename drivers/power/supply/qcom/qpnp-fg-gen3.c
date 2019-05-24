@@ -1823,13 +1823,14 @@ static int fg_charge_full_update(struct fg_chip *chip)
 
 	/* We need 2 most significant bytes here */
 	bsoc = (u32)bsoc >> 16;
-	rc = fg_get_msoc_raw(chip, &msoc_raw);
+	rc = fg_get_msoc(chip, &msoc); //ASUS_BSP
 	if (rc < 0) {
-		pr_err("Error in getting msoc_raw, rc=%d\n", rc);
+		pr_err("Error in getting msoc, rc=%d\n", rc); //ASUS_BSP
 		goto out;
 	}
-	msoc = DIV_ROUND_CLOSEST(msoc_raw * FULL_CAPACITY, FULL_SOC_RAW);
+	msoc_raw = DIV_ROUND_CLOSEST(msoc * FULL_SOC_RAW, FULL_CAPACITY); //ASUS_BSP
 
+//ASUS_BSP +++
 	if(msoc == FULL_CAPACITY && !chip->reporting_charge_full){
 		chip->reporting_charge_full = true;
 		BAT_DBG("Setting reporting_charge_full to true\n");
@@ -1837,9 +1838,10 @@ static int fg_charge_full_update(struct fg_chip *chip)
 	
 	fg_get_msoc_raw(chip, &msoc2);
 	
-	BAT_DBG("msoc: %d bsoc: %d msoc_255: %d health: %d status: %d chg-full:%d repo-full:%d delta:%d maint:%d recharge_soc:%d\n",
+	BAT_DBG("msoc: %d bsoc: %d msoc_255: %d health: %d status: %d chg-full:%d repo-full:%d delta:%d maint:%d msoc_raw:%d recharge_soc:%d\n",
 		msoc, bsoc >> 8, msoc2, chip->health, chip->charge_status,
-		chip->charge_full,chip->reporting_charge_full,chip->delta_soc ,chip->maint_soc, recharge_soc);
+		chip->charge_full,chip->reporting_charge_full,chip->delta_soc ,chip->maint_soc,msoc_raw,recharge_soc);
+//ASUS_BSP ---
 	if (chip->charge_done && !chip->charge_full) {
 		if (msoc >= 99 && chip->health == POWER_SUPPLY_HEALTH_GOOD) {
 			BAT_DBG("Setting charge_full and reporting_charge_full to true\n");
@@ -1862,7 +1864,7 @@ static int fg_charge_full_update(struct fg_chip *chip)
 		}
 	} else if (msoc_raw <= recharge_soc && (chip->charge_full||chip->reporting_charge_full)) { //ASUS_BSP
 		if (chip->dt.linearize_soc) {
-			chip->delta_soc = FULL_CAPACITY - msoc2;
+			chip->delta_soc = FULL_SOC_RAW - msoc2;
 
 			/*
 			 * We're spreading out the delta SOC over every 10%
@@ -1876,7 +1878,6 @@ static int fg_charge_full_update(struct fg_chip *chip)
 				chip->maint_soc = FULL_SOC_RAW; //ASUS_BSP
 				chip->last_msoc = msoc2; //ASUS_BSP
 			}
-		}
 
 //ASUS_BSP +++
 		chip->charge_full = false;
@@ -1904,14 +1905,14 @@ static int fg_charge_full_update(struct fg_chip *chip)
 		 */
 		if (!chip->charge_full) //ASUS_BSP
 			goto out;
+		}
 
 		rc = fg_configure_full_soc(chip, bsoc);
 		if (rc < 0)
 			goto out;
 
-		chip->charge_full = false;
-		fg_dbg(chip, FG_STATUS, "msoc_raw = %d bsoc: %d recharge_soc: %d delta_soc: %d\n",
-			msoc_raw, bsoc >> 8, recharge_soc, chip->delta_soc);
+		BAT_DBG("trigger keeping 100%%. bsoc: %d recharge_soc: %d delta_soc: %d\n",
+			bsoc >> 8, recharge_soc, chip->delta_soc);
 	}
 //ASUS_BSP +++
 	else if(chip->charge_full||chip->reporting_charge_full){
